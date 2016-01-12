@@ -6,13 +6,15 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 )
 
 const (
-	structTagKey   = "config"
-	requiredTagKey = "required"
+	structTagKey             = "config"
+	requiredTagKey           = "required"
+	missingValuesErrTemplate = "Missing required fields: %s"
 )
 
 var (
@@ -29,7 +31,7 @@ func parseTagKey(tag string) (key string, required bool, err error) {
 	s := strings.Split(tag, ",")
 	switch len(s) {
 	case 2:
-		if s[1] != "required" {
+		if s[1] != requiredTagKey {
 			return "", false, ErrStructTagInvalidOption
 		}
 		return s[0], true, nil
@@ -40,6 +42,10 @@ func parseTagKey(tag string) (key string, required bool, err error) {
 	}
 }
 
+// Configure takes a reference to an interface that has 'config' tags on all atttributes of
+// the struct. Configure first tries to find values for these attributes through command line
+// flags, then will attempt to parse the first argument as a JSON blob.
+// An attribute can be required by appending ',required' to the config key.
 func Configure(config interface{}) error {
 	if flag.Parsed() {
 		return ErrFlagParsed
@@ -51,6 +57,7 @@ func Configure(config interface{}) error {
 	}
 
 	values := map[string]*string{}
+	configFlags := flag.NewFlagSet("configure", flag.ContinueOnError)
 	flagFound := false
 	requiredFields := false
 	missingRequiredFields := []string{}
@@ -74,9 +81,11 @@ func Configure(config interface{}) error {
 			requiredFields = true
 		}
 
-		values[tagVal] = flag.String(tagVal, "", "generated field")
+		values[tagVal] = configFlags.String(tagVal, "", "generated field")
 	}
-	flag.Parse()
+	if err := configFlags.Parse(os.Args[1:]); err != nil {
+		return err
+	}
 
 	for i := 0; i < val.NumField(); i++ {
 		valueField := val.Field(i)
@@ -91,9 +100,9 @@ func Configure(config interface{}) error {
 		}
 	}
 
-	if !flagFound && flag.Arg(0) != "" {
+	if !flagFound && configFlags.Arg(0) != "" {
 		jsonValues := map[string]string{}
-		if err := json.NewDecoder(bytes.NewBufferString(flag.Arg(0))).Decode(&jsonValues); err != nil {
+		if err := json.NewDecoder(bytes.NewBufferString(configFlags.Arg(0))).Decode(&jsonValues); err != nil {
 			return ErrInvalidJSON
 		}
 
@@ -127,7 +136,7 @@ func Configure(config interface{}) error {
 			}
 		}
 		if len(missingRequiredFields) > 0 {
-			return fmt.Errorf("Missing required fields: %s", missingRequiredFields)
+			return fmt.Errorf(missingValuesErrTemplate, missingRequiredFields)
 		}
 	}
 

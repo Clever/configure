@@ -36,9 +36,6 @@ Usage of ./example:
 ./example -district_id="abc123"
 > config: {DistrictID:abc123 Collection:}
 
-./example -district_id="abc123" -collection="schools"
-> config: {DistrictID:abc123 Collection:schools}
-
 ./example '{"district_id":"abc123","collection":"schools"}'
 > config: {DistrictID:abc123 Collection:schools}
 
