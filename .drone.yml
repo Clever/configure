@@ -9,4 +9,5 @@ notify:
     on_success: false
     webhook_url: $$slack_webhook
 script:
+- go get github.com/stretchr/testify/assert
 - make test

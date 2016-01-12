@@ -22,7 +22,7 @@ var (
 	ErrNotReference           = errors.New("The config struct must be a pointer.")
 	ErrStructOnly             = errors.New("Config object must be a struct.")
 	ErrNoTagValue             = errors.New("Config object attributes must have a 'config' tag value.")
-	ErrFlagParsed             = errors.New("Flags should not be used in conjuction, do not flag.Parse() before Configure")
+	ErrFlagParsed             = errors.New("The flag library cannot be used in conjunction with configure")
 	ErrInvalidJSON            = errors.New("Invalid JSON found in arguments.")
 	ErrStructTagInvalidOption = errors.New("Only 'required' is a config option.")
 )
