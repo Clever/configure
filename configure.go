@@ -78,7 +78,7 @@ func Configure(configStruct interface{}) error {
 
 		// currently we only support strings
 		typedAttr := config.Type().Field(i)
-		if typedAttr.Type.Name() != "string" {
+		if typedAttr.Type.Kind() != reflect.String {
 			return ErrStringsOnly
 		}
 
@@ -107,7 +107,7 @@ func Configure(configStruct interface{}) error {
 		}
 	}
 
-	// if no flags were found and we have a value in
+	// if no flags were found and we have a value in the first arg, we try to parse JSON from it.
 	if !flagFound && configFlags.Arg(0) != "" {
 		jsonValues := map[string]string{}
 		if err := json.NewDecoder(bytes.NewBufferString(configFlags.Arg(0))).Decode(&jsonValues); err != nil {
