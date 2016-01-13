@@ -57,6 +57,11 @@ func TestConfigure(t *testing.T) {
 			err:     errMissingDistrictField,
 		},
 		{
+			context: "fails with broken JSON",
+			args:    []string{`{"collection":"not closed, oops"`},
+			err:     ErrInvalidJSON,
+		},
+		{
 			context: "only evaluates flags if provided first",
 			args:    []string{"-collection=schools", `{"district_id":"abc123"}`},
 			err:     errMissingDistrictField,
@@ -88,4 +93,26 @@ func TestConfigure(t *testing.T) {
 			assert.Equal(t, spec.err, Configure(&config), "Case '%s'", spec.context)
 		}
 	}
+}
+
+func TestFailOnNoTag(t *testing.T) {
+	os.Args = []string{"test", `{"district_id":"abc123","collection":"schools"}`}
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+	var config struct {
+		DistrictID string
+		Collection string `config:"collection,required"`
+	}
+	assert.Equal(t, ErrNoTagValue, Configure(&config))
+}
+
+func TestFailOnTooManyTagValues(t *testing.T) {
+	os.Args = []string{"test", `{"district_id":"abc123","collection":"schools"}`}
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+	var config struct {
+		DistrictID string `config:"district_id,required,EXTRA"`
+		Collection string `config:"collection"`
+	}
+	assert.Equal(t, ErrTooManyTagValues, Configure(&config))
 }
