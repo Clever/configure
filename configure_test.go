@@ -116,3 +116,14 @@ func TestFailOnTooManyTagValues(t *testing.T) {
 	}
 	assert.Equal(t, ErrTooManyTagValues, Configure(&config))
 }
+
+func TestBlankFlagValues(t *testing.T) {
+	var config struct {
+		DistrictID string `config:"district_id"`
+		Collection string `config:"collection"`
+	}
+
+	os.Args = []string{"test", "-collection=", "-district_id="}
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	assert.NoError(t, Configure(&config))
+}

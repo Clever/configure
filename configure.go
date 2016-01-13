@@ -19,7 +19,7 @@ const (
 
 var (
 	ErrStringsOnly            = errors.New("Only string values are allowed in a config struct.")
-	ErrNotReference           = errors.New("The config struct must be a pointer.")
+	ErrNotReference           = errors.New("The config struct must be a pointer to a struct.")
 	ErrStructOnly             = errors.New("Config object must be a struct.")
 	ErrNoTagValue             = errors.New("Config object attributes must have a 'config' tag value.")
 	ErrTooManyTagValues       = errors.New("Config object attributes can only have a key and optional required attribute.")
@@ -28,6 +28,7 @@ var (
 	ErrStructTagInvalidOption = errors.New("Only 'required' is a config option.")
 )
 
+// parseTagKey parses the values in a tag.
 func parseTagKey(tag string) (key string, required bool, err error) {
 	if tag == "" {
 		return "", false, ErrNoTagValue
@@ -65,31 +66,34 @@ func Configure(configStruct interface{}) error {
 		configFlags  = flag.NewFlagSet("configure", flag.ContinueOnError)
 		flagValueMap = map[string]*string{} // holds references to attribute flags
 		flagFound    = false                // notes if any flags are found, JSON parsing is skipped if so
+		config       = reflectConfig.Elem()
 	)
 
-	config := reflectConfig.Elem()
+	// this block creates flags for every attribute
 	for i := 0; i < config.NumField(); i++ {
 		valueField := config.Field(i)
 		if !valueField.CanSet() {
 			return ErrNotReference
 		}
 
+		// currently we only support strings
 		typedAttr := config.Type().Field(i)
 		if typedAttr.Type.Name() != "string" {
 			return ErrStringsOnly
 		}
 
+		// get the name of the value and create a flag
 		tagVal, _, err := parseTagKey(typedAttr.Tag.Get(structTagKey))
 		if err != nil {
 			return err
 		}
-
 		flagValueMap[tagVal] = configFlags.String(tagVal, "", "generated field")
 	}
 	if err := configFlags.Parse(os.Args[1:]); err != nil {
 		return err
 	}
 
+	// grab values from flag map
 	for i := 0; i < config.NumField(); i++ {
 		valueField := config.Field(i)
 		tagVal, _, err := parseTagKey(config.Type().Field(i).Tag.Get(structTagKey))
@@ -103,6 +107,7 @@ func Configure(configStruct interface{}) error {
 		}
 	}
 
+	// if no flags were found and we have a value in
 	if !flagFound && configFlags.Arg(0) != "" {
 		jsonValues := map[string]string{}
 		if err := json.NewDecoder(bytes.NewBufferString(configFlags.Arg(0))).Decode(&jsonValues); err != nil {
@@ -114,9 +119,7 @@ func Configure(configStruct interface{}) error {
 			tagVal, _, err := parseTagKey(config.Type().Field(i).Tag.Get(structTagKey))
 			if err != nil {
 				return err
-			}
-
-			if jsonValues[tagVal] != "" {
+			} else if jsonValues[tagVal] != "" {
 				valueField.SetString(jsonValues[tagVal])
 			}
 		}
@@ -125,16 +128,10 @@ func Configure(configStruct interface{}) error {
 	// validate that all required fields were set
 	missingRequiredFields := []string{}
 	for i := 0; i < config.NumField(); i++ {
-		valueField := config.Field(i)
-		typedAttr := config.Type().Field(i)
-		if typedAttr.Type.Name() != "string" {
-			return ErrStringsOnly
-		}
-
-		tagKey, required, err := parseTagKey(typedAttr.Tag.Get(structTagKey))
+		tagKey, required, err := parseTagKey(config.Type().Field(i).Tag.Get(structTagKey))
 		if err != nil {
 			return err
-		} else if required && valueField.String() == "" {
+		} else if required && config.Field(i).String() == "" {
 			missingRequiredFields = append(missingRequiredFields, tagKey)
 		}
 	}
