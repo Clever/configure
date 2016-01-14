@@ -9,6 +9,7 @@ import (
 var config struct {
 	DistrictID string `config:"district_id,required"`
 	Collection string `config:"collection"`
+	DryRun     bool   `config:"dry"`
 }
 
 func main() {

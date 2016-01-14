@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"reflect"
 	"strings"
@@ -113,13 +112,11 @@ func Configure(configStruct interface{}) error {
 		switch typedAttr.Type.Kind() {
 		case reflect.String:
 			if *flagStringValueMap[tagVal] != "" {
-				log.Printf("flags?: yes string in %s", tagVal)
 				flagFound = true
 				valueField.SetString(*flagStringValueMap[tagVal])
 			}
 		case reflect.Bool:
 			if *flagBoolValueMap[tagVal] {
-				log.Printf("flags?: yes bool in %s", tagVal)
 				flagFound = true
 				valueField.SetBool(*flagBoolValueMap[tagVal])
 			}
@@ -127,14 +124,11 @@ func Configure(configStruct interface{}) error {
 	}
 
 	// if no flags were found and we have a value in the first arg, we try to parse JSON from it.
-	log.Printf("flags?: %+v", flagFound)
 	if !flagFound && configFlags.Arg(0) != "" {
-		log.Println("JSON")
 		jsonValues := map[string]interface{}{}
 		if err := json.NewDecoder(bytes.NewBufferString(configFlags.Arg(0))).Decode(&jsonValues); err != nil {
 			return ErrInvalidJSON
 		}
-		log.Printf("JSON: %+v", jsonValues)
 
 		for i := 0; i < config.NumField(); i++ {
 			valueField := config.Field(i)
@@ -147,7 +141,6 @@ func Configure(configStruct interface{}) error {
 				case reflect.String:
 					valueField.SetString(jsonValues[tagVal].(string))
 				case reflect.Bool:
-					log.Printf("%s: %+v", tagVal, jsonValues[tagVal].(bool))
 					valueField.SetBool(jsonValues[tagVal].(bool))
 				}
 			}
