@@ -127,3 +127,29 @@ func TestBlankFlagValues(t *testing.T) {
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
 	assert.NoError(t, Configure(&config))
 }
+
+func TestTrueBooleans(t *testing.T) {
+	var config struct {
+		DistrictID string `config:"district_id"`
+		Dry        bool   `config:"dry"`
+	}
+
+	os.Args = []string{"test", "-district_id=abc123", "-dry=true"}
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	assert.NoError(t, Configure(&config))
+	assert.Equal(t, "abc123", config.DistrictID)
+	assert.True(t, config.Dry)
+}
+
+func TestFalseBooleans(t *testing.T) {
+	var config struct {
+		DistrictID string `config:"district_id"`
+		Dry        bool   `config:"dry"`
+	}
+
+	os.Args = []string{"test", "-district_id=abc123", "-dry=false"}
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	assert.NoError(t, Configure(&config))
+	assert.Equal(t, "abc123", config.DistrictID)
+	assert.False(t, config.Dry)
+}
