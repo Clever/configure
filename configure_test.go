@@ -153,3 +153,19 @@ func TestFalseBooleans(t *testing.T) {
 	assert.Equal(t, "abc123", config.DistrictID)
 	assert.False(t, config.Dry)
 }
+
+func TestDefaultValues(t *testing.T) {
+	config := struct {
+		DistrictID string `config:"district_id"`
+		Dry        bool   `config:"dry"`
+	}{
+		DistrictID: "abc123",
+		Dry:        true,
+	}
+
+	os.Args = []string{"test"}
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	assert.NoError(t, Configure(&config))
+	assert.Equal(t, "abc123", config.DistrictID)
+	assert.True(t, config.Dry)
+}
