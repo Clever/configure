@@ -2,9 +2,9 @@ PKGS := $(shell go list ./... | grep -v example)
 GOLINT := $(GOPATH)/bin/golint
 .PHONY: all test
 
-GOVERSION := $(shell go version | grep 1.5)
+GOVERSION := $(shell go version | grep 1.6)
 ifeq "$(GOVERSION)" ""
-  $(error must be running Go version 1.5)
+  $(error must be running Go version 1.6)
 endif
 export GO15VENDOREXPERIMENT = 1
 
