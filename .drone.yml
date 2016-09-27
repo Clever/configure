@@ -11,3 +11,5 @@ notify:
 script:
 - go get github.com/stretchr/testify/assert
 - make test
+publish:
+  report_card: {}
