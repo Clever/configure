@@ -6,7 +6,7 @@ PKG := github.com/Clever/configure
 PKGS := $(shell go list ./... | grep -v example)
 .PHONY: all test
 
-$(eval $(call golang-version-check,1.7))
+$(eval $(call golang-version-check,1.8))
 
 all: test
 
