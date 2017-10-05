@@ -78,7 +78,7 @@ func Configure(configStruct interface{}) error {
 			return ErrNotReference
 		}
 
-		// currently we only support strings
+		// currently we only support strings and bools
 		typedAttr := config.Type().Field(i)
 		if typedAttr.Type.Kind() != reflect.String && typedAttr.Type.Kind() != reflect.Bool {
 			return ErrStringAndBoolOnly
@@ -93,7 +93,8 @@ func Configure(configStruct interface{}) error {
 		case reflect.String:
 			flagStringValueMap[tagVal] = configFlags.String(tagVal, "", "generated field")
 		case reflect.Bool:
-			flagBoolValueMap[tagVal] = configFlags.Bool(tagVal, false, "generated field")
+			// set the default to the value passed in
+			flagBoolValueMap[tagVal] = configFlags.Bool(tagVal, config.Field(i).Bool(), "generated field")
 		}
 	}
 	if err := configFlags.Parse(os.Args[1:]); err != nil {
@@ -116,10 +117,11 @@ func Configure(configStruct interface{}) error {
 				valueField.SetString(*flagStringValueMap[tagVal])
 			}
 		case reflect.Bool:
-			if *flagBoolValueMap[tagVal] {
+			// we can only know if a bool flag was set if the default was changed
+			if *flagBoolValueMap[tagVal] != config.Field(i).Bool() {
 				flagFound = true
-				valueField.SetBool(*flagBoolValueMap[tagVal])
 			}
+			valueField.SetBool(*flagBoolValueMap[tagVal]) // always set from flags
 		}
 	}
 
