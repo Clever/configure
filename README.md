@@ -3,7 +3,7 @@
 Easily fill in a configuration struct with either flag arguments or a JSON blob argument.
 
 
-## usage
+## Usage
 
 Given a simple program that uses two arguments, `district_id` and `collection`:
 
@@ -50,3 +50,25 @@ Usage of ./example:
 > err: Missing required fields: [district_id]
 ```
 
+### Defining defaults
+
+You can also define defaults by passing a pre-populated struct:
+
+```go
+func main() {
+	config := struct {
+		DistrictID string `config:"district_id,required"`
+		Collection string `config:"collection"`
+	}{
+		Collection: "default-collection",
+	}
+
+	if err := configure.Configure(&config); err != nil {
+		log.Fatalf("err: %#v", err)
+	}
+	log.Printf("config: %#v\n", config)
+
+	// go use arguments to do something
+}
+
+```
