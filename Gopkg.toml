@@ -22,9 +22,5 @@
 
 
 [[constraint]]
-  name = "github.com/Clever/configure"
-  version = "1.0.0"
-
-[[constraint]]
   name = "github.com/stretchr/testify"
   version = "1.1.4"
