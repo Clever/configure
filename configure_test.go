@@ -17,6 +17,7 @@ const (
 
 var (
 	errMissingDistrictField = fmt.Errorf(missingValuesErrTemplate, []string{"district_id"})
+	expectedRemaining       = []byte("[{}]")
 )
 
 func TestConfigure(t *testing.T) {
@@ -184,4 +185,82 @@ func TestOverrideDefaultValues(t *testing.T) {
 	assert.NoError(t, Configure(&config))
 	assert.Equal(t, "xyz", config.DistrictID)
 	assert.False(t, config.Dry)
+}
+
+func TestAnalyticsWorker(t *testing.T) {
+	for _, spec := range []struct {
+		context    string
+		args       []string
+		err        error
+		district   string
+		remaining  []byte
+		collection string
+	}{
+		{
+			context:   "normal case w/ flags",
+			args:      []string{"-district_id=abc123"},
+			district:  expectedDistrict,
+			remaining: nil,
+		},
+		{
+			context: "missing required field",
+			err:     errMissingDistrictField,
+		},
+		{
+			context: "given other field but not required field",
+			args:    []string{"-collection=schools"},
+			err:     errMissingDistrictField,
+		},
+		{
+			context:   "normal case w/ json",
+			args:      []string{`{ "current": {"district_id":"abc123"}, "remaining": [{}] }`},
+			district:  expectedDistrict,
+			remaining: expectedRemaining,
+		},
+		{
+			context:    "json w/ all fields",
+			args:       []string{`{"current": {"district_id":"abc123","collection":"schools"},"remaining":[{}]}`},
+			district:   expectedDistrict,
+			collection: expectedCollection,
+			remaining:  expectedRemaining,
+		},
+		{
+			context: "empty JSON blob",
+			err:     errMissingDistrictField,
+		},
+		{
+			context: "fails with broken JSON",
+			args:    []string{`{"collection":"not closed, oops"`},
+			err:     ErrInvalidJSON,
+		},
+		{
+			context: "only evaluates flags if provided first",
+			args:    []string{"-collection=schools", `{"district_id":"abc123"}`},
+			err:     errMissingDistrictField,
+		},
+		{
+			context: "fails with non-declared flags",
+			args:    []string{"-district_id=abc123", "-random-test-flag=X"},
+			err:     errors.New("flag provided but not defined: -random-test-flag"),
+		},
+	} {
+		// NOTE: we override both the os.Args and flag.Commandline variables to allow
+		// repeated calls to the flag library.
+		os.Args = append([]string{"test"}, spec.args...)
+		flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+
+		var config struct {
+			DistrictID string `config:"district_id,required"`
+			Collection string `config:"collection"`
+		}
+		remainingPayloads, err := AnalyticsWorker(&config)
+		if spec.err == nil {
+			assert.NoError(t, err, "Case '%s'", spec.context)
+			assert.Equal(t, spec.district, config.DistrictID, "Case '%s'", spec.context)
+			assert.Equal(t, spec.collection, config.Collection, "Case '%s'", spec.context)
+			assert.Equal(t, spec.remaining, remainingPayloads)
+		} else {
+			assert.Equal(t, spec.err, err, "Case '%s'", spec.context)
+		}
+	}
 }

@@ -210,3 +210,76 @@ func validateRequiredFields(config reflect.Value) error {
 
 	return nil
 }
+
+// AnalyticsWorker does the same as Configure, except JSON input is parsed differently.
+// Instead of containing just the structure of configStruct, JSON is expected to have a "current"
+// object that matches configStruct and an array of "remaining" payloads for future workers in the
+// workflow. Remaining payloads are returned as a printable []byte.
+func AnalyticsWorker(configStruct interface{}) ([]byte, error) {
+	if flag.Parsed() {
+		return nil, ErrFlagParsed
+	}
+
+	reflectConfig := reflect.ValueOf(configStruct)
+	if reflectConfig.Kind() != reflect.Ptr {
+		return nil, ErrStructOnly
+	}
+
+	var (
+		configFlags        = flag.NewFlagSet("configure", flag.ContinueOnError)
+		flagStringValueMap = map[string]*string{} // holds references to attribute string flags
+		flagBoolValueMap   = map[string]*bool{}   // holds references to attribute bool flags
+		config             = reflectConfig.Elem()
+	)
+
+	if err := retrieveFlagValues(config, configFlags, flagStringValueMap, flagBoolValueMap); err != nil {
+		return nil, err
+	}
+
+	flagFound, err := populateFromFlagMaps(config, flagStringValueMap, flagBoolValueMap)
+	if err != nil {
+		return nil, err
+	}
+
+	// if no flags were found and we have a value in the first arg, we try to parse JSON from it.
+	analyticsPayload := struct {
+		Current   map[string]interface{}   `json:"current"`
+		Remaining []map[string]interface{} `json:"remaining"`
+	}{}
+	if !flagFound && configFlags.Arg(0) != "" {
+		if err := json.NewDecoder(bytes.NewBufferString(configFlags.Arg(0))).Decode(&analyticsPayload); err != nil {
+			return nil, ErrInvalidJSON
+		}
+
+		for i := 0; i < config.NumField(); i++ {
+			valueField := config.Field(i)
+			tagVal, _, err := parseTagKey(config.Type().Field(i).Tag.Get(structTagKey))
+			if err != nil {
+				return nil, err
+			} else if _, ok := analyticsPayload.Current[tagVal]; ok {
+				typedAttr := config.Type().Field(i)
+				switch typedAttr.Type.Kind() {
+				case reflect.String:
+					valueField.SetString(analyticsPayload.Current[tagVal].(string))
+				case reflect.Bool:
+					valueField.SetBool(analyticsPayload.Current[tagVal].(bool))
+				}
+			}
+		}
+	}
+
+	// validate that all required fields were set
+	if err := validateRequiredFields(config); err != nil {
+		return nil, err
+	}
+
+	if remainingPayloads := analyticsPayload.Remaining; remainingPayloads != nil {
+		remainingPayloads, err := json.Marshal(analyticsPayload.Remaining)
+		if err != nil {
+			return nil, err
+		}
+		return remainingPayloads, nil
+	}
+
+	return nil, nil
+}
