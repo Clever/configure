@@ -68,11 +68,6 @@ func TestConfigure(t *testing.T) {
 			err:     errMissingDistrictField,
 		},
 		{
-			context: "only evaluates flags if provided first",
-			args:    []string{"-collection=schools", `{"district_id":"abc123"}`},
-			err:     errMissingDistrictField,
-		},
-		{
 			context: "fails with non-declared flags",
 			args:    []string{"-district_id=abc123", "-random-test-flag=X"},
 			err:     errors.New("flag provided but not defined: -random-test-flag"),
