@@ -67,10 +67,34 @@ func Configure(configStruct interface{}) error {
 		configFlags        = flag.NewFlagSet("configure", flag.ContinueOnError)
 		flagStringValueMap = map[string]*string{} // holds references to attribute string flags
 		flagBoolValueMap   = map[string]*bool{}   // holds references to attribute bool flags
-		flagFound          = false                // notes if any flags are found, JSON parsing is skipped if so
 		config             = reflectConfig.Elem()
 	)
 
+	if err := retrieveFlagValues(config, configFlags, flagStringValueMap, flagBoolValueMap); err != nil {
+		return err
+	}
+
+	flagFound, err := populateFromFlagMaps(config, flagStringValueMap, flagBoolValueMap)
+	if err != nil {
+		return err
+	}
+
+	// if no flags were found and we have a value in the first arg, we try to parse JSON from it.
+	if !flagFound && configFlags.Arg(0) != "" {
+		if err := parseFromJSON(config, configFlags); err != nil {
+			return err
+		}
+	}
+
+	// validate that all required fields were set
+	if err := validateRequiredFields(config); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func createFlags(config reflect.Value, configFlags *flag.FlagSet, flagStringValueMap map[string]*string, flagBoolValueMap map[string]*bool) error {
 	// this block creates flags for every attribute
 	for i := 0; i < config.NumField(); i++ {
 		valueField := config.Field(i)
@@ -97,16 +121,27 @@ func Configure(configStruct interface{}) error {
 			flagBoolValueMap[tagVal] = configFlags.Bool(tagVal, config.Field(i).Bool(), "generated field")
 		}
 	}
+	return nil
+}
+
+func retrieveFlagValues(config reflect.Value, configFlags *flag.FlagSet, flagStringValueMap map[string]*string, flagBoolValueMap map[string]*bool) error {
+	if err := createFlags(config, configFlags, flagStringValueMap, flagBoolValueMap); err != nil {
+		return err
+	}
 	if err := configFlags.Parse(os.Args[1:]); err != nil {
 		return err
 	}
+	return nil
+}
 
+func populateFromFlagMaps(config reflect.Value, flagStringValueMap map[string]*string, flagBoolValueMap map[string]*bool) (bool, error) {
+	flagFound := false
 	// grab values from flag map
 	for i := 0; i < config.NumField(); i++ {
 		valueField := config.Field(i)
 		tagVal, _, err := parseTagKey(config.Type().Field(i).Tag.Get(structTagKey))
 		if err != nil {
-			return err
+			return flagFound, err
 		}
 
 		typedAttr := config.Type().Field(i)
@@ -124,32 +159,35 @@ func Configure(configStruct interface{}) error {
 			valueField.SetBool(*flagBoolValueMap[tagVal]) // always set from flags
 		}
 	}
+	return flagFound, nil
+}
 
-	// if no flags were found and we have a value in the first arg, we try to parse JSON from it.
-	if !flagFound && configFlags.Arg(0) != "" {
-		jsonValues := map[string]interface{}{}
-		if err := json.NewDecoder(bytes.NewBufferString(configFlags.Arg(0))).Decode(&jsonValues); err != nil {
-			return ErrInvalidJSON
-		}
+func parseFromJSON(config reflect.Value, configFlags *flag.FlagSet) error {
+	jsonValues := map[string]interface{}{}
+	if err := json.NewDecoder(bytes.NewBufferString(configFlags.Arg(0))).Decode(&jsonValues); err != nil {
+		return ErrInvalidJSON
+	}
 
-		for i := 0; i < config.NumField(); i++ {
-			valueField := config.Field(i)
-			tagVal, _, err := parseTagKey(config.Type().Field(i).Tag.Get(structTagKey))
-			if err != nil {
-				return err
-			} else if _, ok := jsonValues[tagVal]; ok {
-				typedAttr := config.Type().Field(i)
-				switch typedAttr.Type.Kind() {
-				case reflect.String:
-					valueField.SetString(jsonValues[tagVal].(string))
-				case reflect.Bool:
-					valueField.SetBool(jsonValues[tagVal].(bool))
-				}
+	for i := 0; i < config.NumField(); i++ {
+		valueField := config.Field(i)
+		tagVal, _, err := parseTagKey(config.Type().Field(i).Tag.Get(structTagKey))
+		if err != nil {
+			return err
+		} else if _, ok := jsonValues[tagVal]; ok {
+			typedAttr := config.Type().Field(i)
+			switch typedAttr.Type.Kind() {
+			case reflect.String:
+				valueField.SetString(jsonValues[tagVal].(string))
+			case reflect.Bool:
+				valueField.SetBool(jsonValues[tagVal].(bool))
 			}
 		}
 	}
 
-	// validate that all required fields were set
+	return nil
+}
+
+func validateRequiredFields(config reflect.Value) error {
 	missingRequiredFields := []string{}
 	for i := 0; i < config.NumField(); i++ {
 		tagKey, required, err := parseTagKey(config.Type().Field(i).Tag.Get(structTagKey))
