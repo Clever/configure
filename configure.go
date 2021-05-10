@@ -153,6 +153,8 @@ func Configure(configStruct interface{}) error {
 					valueField.SetString(jsonValues[tagVal].(string))
 				case reflect.Bool:
 					valueField.SetBool(jsonValues[tagVal].(bool))
+				case reflect.Float64:
+					valueField.SetFloat(jsonValues[tagVal].(float64))
 				}
 			}
 		}
@@ -172,6 +174,10 @@ func Configure(configStruct interface{}) error {
 				}
 			case reflect.Bool:
 				return ErrBoolCannotBeRequired
+			case reflect.Float64:
+				if config.Field(i).Float() == 0 {
+					missingRequiredFields = append(missingRequiredFields, tagKey)
+				}
 			}
 		}
 	}
