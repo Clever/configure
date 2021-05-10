@@ -64,11 +64,12 @@ func Configure(configStruct interface{}) error {
 	}
 
 	var (
-		configFlags        = flag.NewFlagSet("configure", flag.ContinueOnError)
-		flagStringValueMap = map[string]*string{} // holds references to attribute string flags
-		flagBoolValueMap   = map[string]*bool{}   // holds references to attribute bool flags
-		flagFound          = false                // notes if any flags are found, JSON parsing is skipped if so
-		config             = reflectConfig.Elem()
+		configFlags         = flag.NewFlagSet("configure", flag.ContinueOnError)
+		flagStringValueMap  = map[string]*string{}  // holds references to attribute string flags
+		flagBoolValueMap    = map[string]*bool{}    // holds references to attribute bool flags
+		flagFloat64ValueMap = map[string]*float64{} // holds references to attribute float flags
+		flagFound           = false                 // notes if any flags are found, JSON parsing is skipped if so
+		config              = reflectConfig.Elem()
 	)
 
 	// this block creates flags for every attribute
@@ -80,7 +81,7 @@ func Configure(configStruct interface{}) error {
 
 		// currently we only support strings and bools
 		typedAttr := config.Type().Field(i)
-		if typedAttr.Type.Kind() != reflect.String && typedAttr.Type.Kind() != reflect.Bool {
+		if typedAttr.Type.Kind() != reflect.String && typedAttr.Type.Kind() != reflect.Bool && typedAttr.Type.Kind() != reflect.Float64 {
 			return ErrStringAndBoolOnly
 		}
 
@@ -95,6 +96,8 @@ func Configure(configStruct interface{}) error {
 		case reflect.Bool:
 			// set the default to the value passed in
 			flagBoolValueMap[tagVal] = configFlags.Bool(tagVal, config.Field(i).Bool(), "generated field")
+		case reflect.Float64:
+			flagFloat64ValueMap[tagVal] = configFlags.Float64(tagVal, config.Field(i).Float(), "generated field")
 		}
 	}
 	if err := configFlags.Parse(os.Args[1:]); err != nil {
@@ -122,7 +125,13 @@ func Configure(configStruct interface{}) error {
 				flagFound = true
 			}
 			valueField.SetBool(*flagBoolValueMap[tagVal]) // always set from flags
+		case reflect.Float64:
+			if *flagFloat64ValueMap[tagVal] != 0 {
+				flagFound = true
+				valueField.SetFloat(*flagFloat64ValueMap[tagVal])
+			}
 		}
+
 	}
 
 	// if no flags were found and we have a value in the first arg, we try to parse JSON from it.
