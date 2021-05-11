@@ -18,15 +18,15 @@ const (
 )
 
 var (
-	ErrStringAndBoolOnly      = errors.New("Only string/bool values are allowed in a config struct.")
-	ErrBoolCannotBeRequired   = errors.New("Boolean attributes cannot be required")
-	ErrNotReference           = errors.New("The config struct must be a pointer to a struct.")
-	ErrStructOnly             = errors.New("Config object must be a struct.")
-	ErrNoTagValue             = errors.New("Config object attributes must have a 'config' tag value.")
-	ErrTooManyTagValues       = errors.New("Config object attributes can only have a key and optional required attribute.")
-	ErrFlagParsed             = errors.New("The flag library cannot be used in conjunction with configure")
-	ErrInvalidJSON            = errors.New("Invalid JSON found in arguments.")
-	ErrStructTagInvalidOption = errors.New("Only 'required' is a config option.")
+	ErrStringOrBoolOrFloatOnly = errors.New("Only string/bool/float values are allowed in a config struct.")
+	ErrBoolCannotBeRequired    = errors.New("Boolean attributes cannot be required")
+	ErrNotReference            = errors.New("The config struct must be a pointer to a struct.")
+	ErrStructOnly              = errors.New("Config object must be a struct.")
+	ErrNoTagValue              = errors.New("Config object attributes must have a 'config' tag value.")
+	ErrTooManyTagValues        = errors.New("Config object attributes can only have a key and optional required attribute.")
+	ErrFlagParsed              = errors.New("The flag library cannot be used in conjunction with configure")
+	ErrInvalidJSON             = errors.New("Invalid JSON found in arguments.")
+	ErrStructTagInvalidOption  = errors.New("Only 'required' is a config option.")
 )
 
 // parseTagKey parses the values in a tag.
