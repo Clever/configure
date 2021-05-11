@@ -82,7 +82,7 @@ func Configure(configStruct interface{}) error {
 		// currently we only support strings and bools and floats
 		typedAttr := config.Type().Field(i)
 		if typedAttr.Type.Kind() != reflect.String && typedAttr.Type.Kind() != reflect.Bool && typedAttr.Type.Kind() != reflect.Float64 {
-			return ErrStringAndBoolOnly
+			return ErrStringOrBoolOrFloatOnly
 		}
 
 		// get the name of the value and create a flag
