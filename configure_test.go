@@ -154,6 +154,28 @@ func TestFalseBooleans(t *testing.T) {
 	assert.False(t, config.Dry)
 }
 
+func TestFloat(t *testing.T) {
+	var config struct {
+		Number float64 `config:"number_hello"`
+	}
+
+	os.Args = []string{"test", "-number_hello=12345.678"}
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	assert.NoError(t, Configure(&config))
+	assert.Equal(t, 12345.678, config.Number)
+}
+
+func TestFloatAsJSON(t *testing.T) {
+	var config struct {
+		Number float64 `config:"number_hello,required"`
+	}
+
+	os.Args = []string{"test", `{"number_hello":12345.678,"collection":"schools"}`} // `'{"number_hello":12345.678}'`}
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ContinueOnError)
+	assert.NoError(t, Configure(&config))
+	assert.Equal(t, 12345.678, config.Number)
+}
+
 func TestDefaultValues(t *testing.T) {
 	config := struct {
 		DistrictID string `config:"district_id"`

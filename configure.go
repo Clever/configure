@@ -18,15 +18,15 @@ const (
 )
 
 var (
-	ErrStringAndBoolOnly      = errors.New("Only string/bool values are allowed in a config struct.")
-	ErrBoolCannotBeRequired   = errors.New("Boolean attributes cannot be required")
-	ErrNotReference           = errors.New("The config struct must be a pointer to a struct.")
-	ErrStructOnly             = errors.New("Config object must be a struct.")
-	ErrNoTagValue             = errors.New("Config object attributes must have a 'config' tag value.")
-	ErrTooManyTagValues       = errors.New("Config object attributes can only have a key and optional required attribute.")
-	ErrFlagParsed             = errors.New("The flag library cannot be used in conjunction with configure")
-	ErrInvalidJSON            = errors.New("Invalid JSON found in arguments.")
-	ErrStructTagInvalidOption = errors.New("Only 'required' is a config option.")
+	ErrStringOrBoolOrFloatOnly = errors.New("Only string/bool/float values are allowed in a config struct.")
+	ErrBoolCannotBeRequired    = errors.New("Boolean attributes cannot be required")
+	ErrNotReference            = errors.New("The config struct must be a pointer to a struct.")
+	ErrStructOnly              = errors.New("Config object must be a struct.")
+	ErrNoTagValue              = errors.New("Config object attributes must have a 'config' tag value.")
+	ErrTooManyTagValues        = errors.New("Config object attributes can only have a key and optional required attribute.")
+	ErrFlagParsed              = errors.New("The flag library cannot be used in conjunction with configure")
+	ErrInvalidJSON             = errors.New("Invalid JSON found in arguments.")
+	ErrStructTagInvalidOption  = errors.New("Only 'required' is a config option.")
 )
 
 // parseTagKey parses the values in a tag.
@@ -64,11 +64,12 @@ func Configure(configStruct interface{}) error {
 	}
 
 	var (
-		configFlags        = flag.NewFlagSet("configure", flag.ContinueOnError)
-		flagStringValueMap = map[string]*string{} // holds references to attribute string flags
-		flagBoolValueMap   = map[string]*bool{}   // holds references to attribute bool flags
-		flagFound          = false                // notes if any flags are found, JSON parsing is skipped if so
-		config             = reflectConfig.Elem()
+		configFlags         = flag.NewFlagSet("configure", flag.ContinueOnError)
+		flagStringValueMap  = map[string]*string{}  // holds references to attribute string flags
+		flagBoolValueMap    = map[string]*bool{}    // holds references to attribute bool flags
+		flagFloat64ValueMap = map[string]*float64{} // holds references to attribute float flags
+		flagFound           = false                 // notes if any flags are found, JSON parsing is skipped if so
+		config              = reflectConfig.Elem()
 	)
 
 	// this block creates flags for every attribute
@@ -78,10 +79,10 @@ func Configure(configStruct interface{}) error {
 			return ErrNotReference
 		}
 
-		// currently we only support strings and bools
+		// currently we only support strings and bools and floats
 		typedAttr := config.Type().Field(i)
-		if typedAttr.Type.Kind() != reflect.String && typedAttr.Type.Kind() != reflect.Bool {
-			return ErrStringAndBoolOnly
+		if typedAttr.Type.Kind() != reflect.String && typedAttr.Type.Kind() != reflect.Bool && typedAttr.Type.Kind() != reflect.Float64 {
+			return ErrStringOrBoolOrFloatOnly
 		}
 
 		// get the name of the value and create a flag
@@ -95,6 +96,8 @@ func Configure(configStruct interface{}) error {
 		case reflect.Bool:
 			// set the default to the value passed in
 			flagBoolValueMap[tagVal] = configFlags.Bool(tagVal, config.Field(i).Bool(), "generated field")
+		case reflect.Float64:
+			flagFloat64ValueMap[tagVal] = configFlags.Float64(tagVal, config.Field(i).Float(), "generated field")
 		}
 	}
 	if err := configFlags.Parse(os.Args[1:]); err != nil {
@@ -122,7 +125,13 @@ func Configure(configStruct interface{}) error {
 				flagFound = true
 			}
 			valueField.SetBool(*flagBoolValueMap[tagVal]) // always set from flags
+		case reflect.Float64:
+			if *flagFloat64ValueMap[tagVal] != 0 {
+				flagFound = true
+				valueField.SetFloat(*flagFloat64ValueMap[tagVal])
+			}
 		}
+
 	}
 
 	// if no flags were found and we have a value in the first arg, we try to parse JSON from it.
@@ -144,6 +153,8 @@ func Configure(configStruct interface{}) error {
 					valueField.SetString(jsonValues[tagVal].(string))
 				case reflect.Bool:
 					valueField.SetBool(jsonValues[tagVal].(bool))
+				case reflect.Float64:
+					valueField.SetFloat(jsonValues[tagVal].(float64))
 				}
 			}
 		}
@@ -163,6 +174,10 @@ func Configure(configStruct interface{}) error {
 				}
 			case reflect.Bool:
 				return ErrBoolCannotBeRequired
+			case reflect.Float64:
+				if config.Field(i).Float() == 0 {
+					missingRequiredFields = append(missingRequiredFields, tagKey)
+				}
 			}
 		}
 	}
