@@ -1,0 +1,8 @@
+# github.com/Clever/configure v0.0.0-20171005002506-e62cf1715b47
+github.com/Clever/configure
+# github.com/davecgh/go-spew v1.1.0
+github.com/davecgh/go-spew/spew
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
+# github.com/stretchr/testify v1.1.4
+github.com/stretchr/testify/assert
